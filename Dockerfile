@@ -1,21 +1,34 @@
-# Use official Python image
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-# Set working directory
 WORKDIR /app
 
-# Copy project files
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-# Install dependencies
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+# Playwright dependencies for Chromium
+RUN apt-get update && apt-get install -y \
+    wget \
+    xvfb \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libpango-1.0-0 \
+    libxshmfence1 \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright browsers
-RUN playwright install --with-deps chromium
+RUN playwright install chromium
 
-# Expose port
 EXPOSE 5000
 
-# Run using gunicorn (production server)
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:$PORT"]
