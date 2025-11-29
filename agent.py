@@ -6,45 +6,47 @@ from submitter import submit_answer
 
 def run_task_loop(start_url: str, email: str, secret: str):
     """
-    Infinite loop that fetches the next task URL, solves it, and submits the answer
-    until the server signals completion.
+    Infinite loop that fetches each quiz page, extracts the question,
+    solves it, submits the answer, and moves to the next task.
     """
     current_url = start_url
 
     while current_url:
-        print(f"Fetching task from: {current_url}")
+        print(f"\nFetching task page: {current_url}")
 
-        # 1. Call /task endpoint
-        payload = {
-            "email": email,
-            "secret": secret,
-            "url": current_url
-        }
-
-        resp = requests.post("http://127.0.0.1:5000/task", json=payload)
-        data = resp.json()
-
-        if resp.status_code != 200:
-            print("Error:", data)
+        # --- 1. Load HTML using Playwright ---
+        page_html = render_page(current_url)
+        if isinstance(page_html, dict) and "error" in page_html:
+            print("Error loading page:", page_html)
             break
 
-        # 2. Extract info from response
-        question = data.get("question")
-        submit_url = data.get("submit_url")
-        answer = data.get("answer")
+        # --- 2. Extract question & submit URL ---
+        question = extract_question_text(page_html)
+        submit_url = extract_submit_url(page_html)
 
         print("Question:", question)
-        print("Answer:", answer)
         print("Submit URL:", submit_url)
 
-        # 3. Submit answer if not already submitted
-        submit_response = submit_answer(submit_url, email, secret, answer)
-        print("Submit response:", submit_response)
+        # --- 3. Solve question ---
+        answer = solve_question(question)
+        print("Computed Answer:", answer)
 
-        # 4. Get next task URL (if any)
-        next_url = submit_response.get("next_task_url")
+        # --- 4. Submit Answer ---
+        submit_response = submit_answer(
+            submit_url=submit_url,
+            email=email,
+            secret=secret,
+            answer=answer,
+            quiz_url=current_url
+        )
+
+        print("Submit Response:", submit_response)
+
+        # --- 5. Server gives next task URL as "url" ---
+        next_url = submit_response.get("url")
+
         if not next_url:
-            print("No more tasks. Quiz complete!")
+            print("\nNo next task. Quiz complete!")
             break
 
         current_url = next_url
