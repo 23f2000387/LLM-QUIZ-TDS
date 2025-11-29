@@ -8,13 +8,14 @@ from solver import solve_question
 from submitter import submit_answer
 from agent import run_task_loop
 import os
-import requests
 from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 SECRET = os.environ.get("QUIZ_SECRET")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
 
 # ---------------------------------------------------------
 #  /task  → main endpoint the IITM evaluator calls
@@ -31,17 +32,17 @@ def task_handler():
         abort(403, description="Invalid secret")
 
     try:
-        # --- Load quiz page ---
-        page, browser, playwright = render_page(url)
+        # --- 1. Load quiz page HTML ---
+        page_html = render_page(url)  # returns HTML string
 
-        # --- Extract question & submit URL ---
-        question = extract_question_text(page)
-        submit_url = extract_submit_url(page)
+        # --- 2. Extract question & submit URL ---
+        question = extract_question_text(page_html)
+        submit_url = extract_submit_url(page_html)
 
-        # --- Solve the question ---
+        # --- 3. Solve the question ---
         answer = solve_question(question)
 
-        # --- Build submit payload ---
+        # --- 4. Build submit payload ---
         submit_payload = {
             "email": email,
             "secret": secret,
@@ -49,7 +50,7 @@ def task_handler():
             "answer": answer
         }
 
-        # --- Submit the answer ---
+        # --- 5. Submit the answer ---
         submit_response = submit_answer(submit_url, email, secret, answer, url)
 
     except Exception as e:
@@ -58,15 +59,7 @@ def task_handler():
             "details": str(e)
         }), 500
 
-    finally:
-        # Always close browser
-        try:
-            browser.close()
-            playwright.stop()
-        except:
-            pass
-
-    # --- Return everything so agent.py can loop ---
+    # --- 6. Return everything so agent.py can loop ---
     return jsonify({
         "status": "ok",
         "question": question,
@@ -75,7 +68,6 @@ def task_handler():
         "submit_payload": submit_payload,
         "submit_response": submit_response
     }), 200
-
 
 
 # ---------------------------------------------------------
@@ -90,7 +82,6 @@ def run_agent():
 
     run_task_loop(start, email, secret)
     return {"status": "started"}
-
 
 
 # ---------------------------------------------------------
