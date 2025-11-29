@@ -2,7 +2,7 @@
 import asyncio
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
-BROWSER_TIMEOUT_MS = 30_000  # 30 seconds
+BROWSER_TIMEOUT_MS = 60_000  # 30 seconds
 
 async def render_page_async(url: str) -> str:
     """
@@ -33,3 +33,4 @@ def render_page(url: str) -> str:
     Synchronous wrapper for render_page_async so existing code can call it normally.
     """
     return asyncio.run(render_page_async(url))
+
