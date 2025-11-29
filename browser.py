@@ -5,7 +5,7 @@ BROWSER_TIMEOUT_MS = 30_000  # 30 seconds
 
 def render_page(url: str) -> str:
     """
-    Launch headless Chromium, load URL, wait for network idle,
+    Launch headless Chromium, load the URL, wait for network idle,
     and return HTML content as string.
     """
     p = sync_playwright().start()
@@ -14,12 +14,16 @@ def render_page(url: str) -> str:
     page = ctx.new_page()
 
     try:
+        # Load the page
         page.goto(url, timeout=BROWSER_TIMEOUT_MS)
         page.wait_for_load_state("networkidle")
+        
+        # Get the full page HTML
         html = page.content()
     except PlaywrightTimeoutError:
-        raise RuntimeError("Page timed out while loading")
+        raise RuntimeError(f"Page timed out while loading: {url}")
     finally:
+        # Clean up
         browser.close()
         p.stop()
 
