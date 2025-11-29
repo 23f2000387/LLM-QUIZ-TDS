@@ -1,47 +1,49 @@
 # parser.py
-from bs4 import BeautifulSoup
-import re
 import openai
+import re
 
 def extract_submit_url(html: str) -> str:
     """
-    Extracts submit URL from raw HTML string.
+    Extracts the submit URL from the quiz page HTML.
     """
-    # Try regex first
-    pattern = r"https://[^\s\"']+/submit[^\s\"']*"
-    matches = re.findall(pattern, html)
-    if matches:
-        return matches[0]
-
-    # Fallback to OpenAI
     try:
-        resp = openai.ChatCompletion.create(
+        # Use OpenAI to extract URL
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "Extract the submit URL from the page text."},
-                {"role": "user", "content": html}
+                {"role": "system", "content": "Extract only the submit URL from the HTML."},
+                {"role": "user", "content": f"HTML:\n{html}\n\nReturn ONLY the submit URL."}
             ],
             temperature=0
         )
-        return resp.choices[0].message.content.strip()
-    except Exception:
+        submit_url = response.choices[0].message.content.strip()
+        return submit_url
+    except Exception as e:
+        print("OpenAI failed, using regex fallback:", e)
+        pattern = r"https://[^\s\"']+/submit[^\s\"']*"
+        matches = re.findall(pattern, html)
+        if matches:
+            return matches[0]
         raise ValueError("Submit URL not found")
+
 
 def extract_question_text(html: str) -> str:
     """
-    Extracts the quiz question from HTML.
-    Handles multiple table rows correctly.
-    Returns plain text with rows separated by newlines.
+    Extracts the quiz question from the page HTML.
     """
-    soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table")
-    if table:
-        rows = table.find_all("tr")
-        text_rows = []
-        for row in rows:
-            cols = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
-            text_rows.append(" | ".join(cols))
-        return "\n".join(text_rows)
-
-    # fallback: return all visible text
-    return soup.get_text(separator="\n", strip=True)
+    try:
+        # Use OpenAI to extract question
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Extract only the quiz question from HTML."},
+                {"role": "user", "content": f"HTML:\n{html}\n\nReturn ONLY the quiz question."}
+            ],
+            temperature=0
+        )
+        question = response.choices[0].message.content.strip()
+        return question
+    except Exception as e:
+        print("OpenAI failed, fallback to raw HTML:", e)
+        # fallback: crude extraction
+        return html
