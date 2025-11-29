@@ -1,30 +1,35 @@
 # browser.py
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+import asyncio
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 BROWSER_TIMEOUT_MS = 30_000  # 30 seconds
 
-def render_page(url: str) -> str:
+async def render_page_async(url: str) -> str:
     """
-    Launch headless Chromium, load the URL, wait for network idle,
+    Launch headless Chromium asynchronously, load the URL, wait for network idle,
     and return HTML content as string.
     """
-    p = sync_playwright().start()
-    browser = p.chromium.launch(headless=True)
-    ctx = browser.new_context()
-    page = ctx.new_page()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        ctx = await browser.new_context()
+        page = await ctx.new_page()
 
-    try:
-        # Load the page
-        page.goto(url, timeout=BROWSER_TIMEOUT_MS)
-        page.wait_for_load_state("networkidle")
-        
-        # Get the full page HTML
-        html = page.content()
-    except PlaywrightTimeoutError:
-        raise RuntimeError(f"Page timed out while loading: {url}")
-    finally:
-        # Clean up
-        browser.close()
-        p.stop()
+        try:
+            # Load the page
+            await page.goto(url, timeout=BROWSER_TIMEOUT_MS)
+            await page.wait_for_load_state("networkidle")
 
-    return html
+            # Get the full page HTML
+            html = await page.content()
+        except PlaywrightTimeoutError:
+            raise RuntimeError(f"Page timed out while loading: {url}")
+        finally:
+            await browser.close()
+
+        return html
+
+def render_page(url: str) -> str:
+    """
+    Synchronous wrapper for render_page_async so existing code can call it normally.
+    """
+    return asyncio.run(render_page_async(url))
