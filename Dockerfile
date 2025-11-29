@@ -7,9 +7,13 @@ WORKDIR /app
 # Copy project files
 COPY . .
 
-# Install dependencies
+# Upgrade pip and install dependencies
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
+
+# Install Playwright and Chromium
+RUN pip install playwright
+RUN playwright install chromium
 
 # Expose port
 EXPOSE 5000
