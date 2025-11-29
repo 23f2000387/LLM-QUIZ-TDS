@@ -7,21 +7,15 @@ WORKDIR /app
 # Copy project files
 COPY . .
 
-# Upgrade pip and install dependencies
+# Install dependencies
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Install Playwright and Chromium
-RUN pip install playwright
-RUN playwright install chromium
+# Install Playwright browsers
+RUN playwright install --with-deps chromium
 
 # Expose port
 EXPOSE 5000
 
-# Set environment variables (Render will override these)
-ENV FLASK_APP=app.py
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=5000
-
-# Run the app
-CMD ["flask", "run"]
+# Run using gunicorn (production server)
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
