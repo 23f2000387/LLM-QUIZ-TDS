@@ -1,37 +1,27 @@
-import requests
-from browser import render_page
-from parser import extract_question_text, extract_submit_url
-from solver import solve_question
-from submitter import submit_answer
-
 def run_task_loop(start_url: str, email: str, secret: str):
-    """
-    Infinite loop that fetches each quiz page, extracts the question,
-    solves it, submits the answer, and moves to the next task.
-    """
     current_url = start_url
 
     while current_url:
         print(f"\nFetching task page: {current_url}")
 
-        # --- 1. Load HTML using Playwright ---
-        page_html = render_page(current_url)
-        if isinstance(page_html, dict) and "error" in page_html:
-            print("Error loading page:", page_html)
+        # 1. Load full HTML
+        html = render_page(current_url)
+        if isinstance(html, dict) and "error" in html:
+            print("Error:", html)
             break
 
-        # --- 2. Extract question & submit URL ---
-        question = extract_question_text(page_html)
-        submit_url = extract_submit_url(page_html)
+        # 2. Extract question and submit URL
+        question = extract_question_text(html)
+        submit_url = extract_submit_url(html)
 
         print("Question:", question)
         print("Submit URL:", submit_url)
 
-        # --- 3. Solve question ---
+        # 3. Solve the question using OpenAI
         answer = solve_question(question)
         print("Computed Answer:", answer)
 
-        # --- 4. Submit Answer ---
+        # 4. Submit the answer
         submit_response = submit_answer(
             submit_url=submit_url,
             email=email,
@@ -42,11 +32,12 @@ def run_task_loop(start_url: str, email: str, secret: str):
 
         print("Submit Response:", submit_response)
 
-        # --- 5. Server gives next task URL as "url" ---
+        # 5. Next task URL is inside key: "url"
         next_url = submit_response.get("url")
 
         if not next_url:
-            print("\nNo next task. Quiz complete!")
+            print("Quiz complete!")
             break
 
+        # Move to next page
         current_url = next_url
