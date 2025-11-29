@@ -1,51 +1,47 @@
 # parser.py
-
-import openai
+from bs4 import BeautifulSoup
 import re
+import openai
 
 def extract_submit_url(html: str) -> str:
     """
     Extracts submit URL from raw HTML string.
     """
-    full_text = html
+    # Try regex first
+    pattern = r"https://[^\s\"']+/submit[^\s\"']*"
+    matches = re.findall(pattern, html)
+    if matches:
+        return matches[0]
 
+    # Fallback to OpenAI
     try:
-        response = openai.ChatCompletion.create(
+        resp = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "Extract the submit URL from the page text."},
-                {"role": "user", "content": f"Page:\n{full_text}\n\nReturn ONLY the submit URL."}
+                {"role": "user", "content": html}
             ],
             temperature=0
         )
-        return response.choices[0].message.content.strip()
-
-    except Exception as e:
-        print("OpenAI failed, fallback to regex:", e)
-        pattern = r"https://[^\s\"']+/submit[^\s\"']*"
-        matches = re.findall(pattern, full_text)
-        if matches:
-            return matches[0]
-        raise ValueError("Submit URL not found.")
-
+        return resp.choices[0].message.content.strip()
+    except Exception:
+        raise ValueError("Submit URL not found")
 
 def extract_question_text(html: str) -> str:
     """
-    Extracts quiz question from raw HTML string.
+    Extracts the quiz question from HTML.
+    Handles multiple table rows correctly.
+    Returns plain text with rows separated by newlines.
     """
-    full_text = html
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table")
+    if table:
+        rows = table.find_all("tr")
+        text_rows = []
+        for row in rows:
+            cols = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
+            text_rows.append(" | ".join(cols))
+        return "\n".join(text_rows)
 
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "Extract the quiz question from the page text."},
-                {"role": "user", "content": f"Page:\n{full_text}\n\nReturn ONLY the quiz question."}
-            ],
-            temperature=0
-        )
-        return response.choices[0].message.content.strip()
-
-    except Exception as e:
-        print("OpenAI failed, fallback:", e)
-        return full_text
+    # fallback: return all visible text
+    return soup.get_text(separator="\n", strip=True)
