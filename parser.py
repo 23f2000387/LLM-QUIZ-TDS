@@ -1,58 +1,51 @@
 # parser.py
 
-import os
 import openai
-from playwright.sync_api import Page
 import re
-import os
 
-QUIZ_SECRET = os.environ.get("QUIZ_SECRET")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-
-def extract_submit_url(page: Page) -> str:
+def extract_submit_url(html: str) -> str:
     """
-    Uses OpenAI to extract the submit URL from the rendered quiz page.
+    Extracts submit URL from raw HTML string.
     """
-    full_text = page.inner_text("body")
+    full_text = html
 
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that extracts the submit URL from page text."},
-                {"role": "user", "content": f"Here is the full page text:\n\n{full_text}\n\nPlease return only the URL that should be used to submit answers. Return it as plain text."}
+                {"role": "system", "content": "Extract the submit URL from the page text."},
+                {"role": "user", "content": f"Page:\n{full_text}\n\nReturn ONLY the submit URL."}
             ],
             temperature=0
         )
-        submit_url = response.choices[0].message.content.strip()
-        return submit_url
+        return response.choices[0].message.content.strip()
+
     except Exception as e:
-        print("OpenAI failed to extract submit URL, falling back to regex:", e)
-        # fallback: regex
-        import re
+        print("OpenAI failed, fallback to regex:", e)
         pattern = r"https://[^\s\"']+/submit[^\s\"']*"
         matches = re.findall(pattern, full_text)
         if matches:
             return matches[0]
-        raise ValueError("Submit URL not found on page")
-    
-def extract_question_text(page: Page) -> str:
+        raise ValueError("Submit URL not found.")
+
+
+def extract_question_text(html: str) -> str:
     """
-    Uses OpenAI to extract the actual quiz question from the full page text.
+    Extracts quiz question from raw HTML string.
     """
-    full_text = page.inner_text("body")
+    full_text = html
 
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that extracts the quiz question from page text."},
-                {"role": "user", "content": f"Here is the full page text:\n\n{full_text}\n\nPlease return only the quiz question in a single concise sentence or paragraph."}
+                {"role": "system", "content": "Extract the quiz question from the page text."},
+                {"role": "user", "content": f"Page:\n{full_text}\n\nReturn ONLY the quiz question."}
             ],
             temperature=0
         )
-        question = response.choices[0].message.content.strip()
-        return question
+        return response.choices[0].message.content.strip()
+
     except Exception as e:
-        print("OpenAI failed, returning raw page text:", e)
+        print("OpenAI failed, fallback:", e)
         return full_text
