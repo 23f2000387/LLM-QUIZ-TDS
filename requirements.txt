@@ -6,5 +6,5 @@ pandas
 PyPDF2
 playwright
 openai
+nest_asyncio
 gunicorn
-
