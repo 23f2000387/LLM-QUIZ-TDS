@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Playwright dependencies for Chromium
+# Playwright Linux dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     xvfb \
@@ -27,8 +27,8 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-RUN playwright install chromium
+RUN python -m playwright install chromium
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:$PORT"]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000"]
