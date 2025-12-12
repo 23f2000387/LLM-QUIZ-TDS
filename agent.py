@@ -1,6 +1,7 @@
 # agent.py
 from browser import render_page
 from parser import extract_question_text
+
 from solver import solve_question
 from submitter import submit_answer
 
@@ -51,3 +52,4 @@ def run_task_loop(start_url: str, email: str, secret: str):
             print("Quiz complete!")
             break
         current_url = next_url
+
