@@ -24,9 +24,8 @@ def task_handler():
         abort(403, description="Invalid secret")
 
     try:
-        html = render_page(url)
+        html, submit_url = render_page(url)   # FIXED
         question = extract_question_text(html)
-        submit_url = extract_submit_url(html)
         answer = solve_question(question)
         submit_response = submit_answer(submit_url, email, secret, answer, url)
     except Exception as e:
@@ -52,3 +51,4 @@ def run_agent():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
