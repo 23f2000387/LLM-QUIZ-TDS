@@ -2,7 +2,8 @@ from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
 from safe_json import safe_get_json
 from browser import render_page
-from parser import extract_question_text, extract_submit_url
+from parser import extract_question_text
+
 from solver import solve_question
 from submitter import submit_answer
 from agent import run_task_loop
@@ -51,4 +52,5 @@ def run_agent():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
