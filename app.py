@@ -42,15 +42,24 @@ def task_handler():
 
 @app.post("/run")
 def run_agent():
+    """
+    Starts the full automatic task loop from the given start URL.
+    """
     data = safe_get_json(request)
     start = data.get("start_url")
     email = data.get("email")
     secret = data.get("secret")
+
+    if not all([start, email, secret]):
+        abort(400, "Missing start_url, email, or secret")
+
     run_task_loop(start, email, secret)
-    return {"status": "started"}
+    return {"status": "completed"}
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
