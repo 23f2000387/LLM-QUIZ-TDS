@@ -1,25 +1,23 @@
 # agent.py
 from browser import render_page
 from parser import extract_question_text
-
 from solver import solve_question
 from submitter import submit_answer
 
 def run_task_loop(start_url: str, email: str, secret: str):
     """
-    Infinite loop to fetch each quiz page, extract question,
-    solve it, submit answer, and continue to next task.
+    Loops through all quiz tasks until no next URL is returned.
     """
     current_url = start_url
 
     while current_url:
         print(f"\nFetching task page: {current_url}")
 
-        # --- 1. Render page and get submit URL ---
+        # --- 1. Render page & get submit URL ---
         try:
             html, submit_url = render_page(current_url)
             if not submit_url:
-                print("Submit URL not found on page.")
+                print("Submit URL not found. Exiting loop.")
                 break
         except Exception as e:
             print("Error loading page:", e)
@@ -28,9 +26,6 @@ def run_task_loop(start_url: str, email: str, secret: str):
         # --- 2. Extract question ---
         try:
             question = extract_question_text(html)
-            if not question:
-                print("Question extraction failed")
-                break
         except Exception as e:
             print("Error parsing page:", e)
             break
@@ -46,10 +41,10 @@ def run_task_loop(start_url: str, email: str, secret: str):
         submit_response = submit_answer(submit_url, email, secret, answer, current_url)
         print("Submit Response:", submit_response)
 
-        # --- 5. Move to next task ---
+        # --- 5. Get next task URL ---
         next_url = submit_response.get("url")
         if not next_url:
-            print("Quiz complete!")
+            print("Quiz complete! No next URL.")
             break
-        current_url = next_url
 
+        current_url = next_url
