@@ -1,65 +1,111 @@
-from flask import Flask, request, jsonify, abort
-from flask_cors import CORS
-from safe_json import safe_get_json
-from browser import render_page
-from parser import extract_question_text
-
-from solver import solve_question
-from submitter import submit_answer
-from agent import run_task_loop
+import requests
+import time
 import os
+from bs4 import BeautifulSoup
 
-app = Flask(__name__)
-CORS(app)
+# ================= CONFIG =================
+BASE_URL = "https://tds-llm-analysis.s-anand.net"
 
-SECRET = os.environ.get("QUIZ_SECRET")
+EMAIL = "23f2000387@ds.study.iitm.ac.in"
+SECRET = "8429175630281947563028194756302819475630"
 
-@app.post("/task")
-def task_handler():
-    data = safe_get_json(request)
-    email = data.get("email")
-    secret = data.get("secret")
-    url = data.get("url")
+OPENAI_API_KEY = os.getenv("")
+OPENAI_URL = "https://aipipe.org/openai/v1/responses"
 
-    if secret != SECRET:
-        abort(403, description="Invalid secret")
+HEADERS = {"User-Agent": "AutoQuizAgent/1.0"}
 
-    try:
-        html, submit_url = render_page(url)   # FIXED
-        question = extract_question_text(html)
-        answer = solve_question(question)
-        submit_response = submit_answer(submit_url, email, secret, answer, url)
-    except Exception as e:
-        return jsonify({"error": "Failed to load or process quiz page", "details": str(e)}), 500
+AI_HEADERS = {
+    "Authorization": f"Bearer {OPENAI_API_KEY}",
+    "Content-Type": "application/json"
+}
+# =========================================
 
-    return jsonify({
-        "status": "ok",
-        "question": question,
-        "submit_url": submit_url,
-        "answer": answer,
-        "submit_response": submit_response
-    })
 
-@app.post("/run")
-def run_agent():
+def fetch_page(url):
+    r = requests.get(url, headers=HEADERS)
+    r.raise_for_status()
+    return r.text
+
+
+def extract_question(html):
+    soup = BeautifulSoup(html, "html.parser")
+    return soup.get_text("\n", strip=True)
+
+
+def call_ai(question_text):
     """
-    Starts the full automatic task loop from the given start URL.
+    AI must return ONLY the answer.
     """
-    data = safe_get_json(request)
-    start = data.get("start_url")
-    email = data.get("email")
-    secret = data.get("secret")
+    payload = {
+        "model": "gpt-5-nano",
+        "input": (
+            "You are solving an online technical quiz.\n"
+            "Return ONLY the exact answer required.\n"
+            "No explanations.\n"
+            "No markdown.\n"
+            "If a command is asked, return only the command.\n\n"
+            f"{question_text}"
+        )
+    }
 
-    if not all([start, email, secret]):
-        abort(400, "Missing start_url, email, or secret")
+    print("\n🤖 ASKING AI...")
 
-    run_task_loop(start, email, secret)
-    return {"status": "completed"}
+    r = requests.post(OPENAI_URL, headers=AI_HEADERS, json=payload)
+    r.raise_for_status()
+
+    result = r.json()
+
+    # AI Pipe response extraction
+    answer = result["output"][1]["content"][0]["text"].strip()
+    return answer
+
+
+def submit_answer(full_url, answer):
+    payload = {
+        "email": EMAIL,
+        "secret": SECRET,
+        "url": full_url,   # 🔴 FULL URL REQUIRED
+        "answer": answer
+    }
+
+    r = requests.post(f"{BASE_URL}/submit", json=payload)
+    r.raise_for_status()
+    return r.json()
+
+
+def main():
+    current_url = f"{BASE_URL}/project2"
+
+    while True:
+        print("\n==============================")
+        print("🌐 FETCHING:", current_url)
+
+        html = fetch_page(current_url)
+        question = extract_question(html)
+
+        print("\n📝 QUESTION:\n")
+        print(question[:2000])
+
+        answer = call_ai(question)
+
+        print("\n✅ ANSWER:")
+        print(answer)
+
+        response = submit_answer(current_url, answer)
+
+        print("\n📝 SUBMISSION RESPONSE:")
+        print(response)
+
+        if response.get("delay"):
+            time.sleep(response["delay"])
+
+        next_url = response.get("url")
+        if not next_url:
+            print("\n🏁 QUIZ FINISHED")
+            break
+
+        current_url = next_url
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
-
-
+    main()
